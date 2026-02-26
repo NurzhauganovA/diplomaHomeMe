@@ -1,0 +1,145 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Пользователи — HomeMe CRM{% endblock %}
+
+{% block breadcrumb %}
+<span class="text-slate-400">/</span>
+<span class="text-slate-700 font-medium">Пользователи</span>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Пользователи</h1>
+    <p class="text-slate-500 text-sm mt-0.5">База клиентов всех платформ</p>
+  </div>
+</div>
+
+<!-- Platform Tabs -->
+<div class="flex gap-2 mb-5">
+  <a href="{% url 'crm:user_list' %}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+       {% if not current_platform %}bg-primary-600 text-white{% else %}bg-white text-slate-600 border border-slate-200 hover:border-primary-300{% endif %}">
+    Все
+  </a>
+  {% for platform, label in platform_choices %}
+  <a href="?platform={{ platform }}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+       {% if current_platform == platform %}bg-primary-600 text-white{% else %}bg-white text-slate-600 border border-slate-200 hover:border-primary-300{% endif %}">
+    {% if platform == 'telegram' %}<i data-lucide="send" class="w-4 h-4"></i>
+    {% elif platform == 'whatsapp' %}<i data-lucide="message-circle" class="w-4 h-4"></i>
+    {% else %}<i data-lucide="globe" class="w-4 h-4"></i>{% endif %}
+    {{ label }}
+    <span class="text-xs px-1.5 py-0.5 rounded-full
+      {% if current_platform == platform %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+      {{ platform_counts|default_if_none:"0" }}
+    </span>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Search -->
+<form method="get" class="flex gap-3 mb-5">
+  {% if current_platform %}<input type="hidden" name="platform" value="{{ current_platform }}">{% endif %}
+  <div class="relative flex-1">
+    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+    <input type="text" name="q" value="{{ search_query }}"
+           placeholder="Поиск по имени или ID..."
+           class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+  </div>
+  <button type="submit"
+          class="px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors">
+    Найти
+  </button>
+</form>
+
+<!-- Users Table -->
+<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-slate-100">
+          <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Пользователь</th>
+          <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Платформа</th>
+          <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Активность</th>
+          <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Поиски</th>
+          <th class="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Язык</th>
+          <th class="px-6 py-3.5"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for user in users %}
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0
+                {% if user.platform == 'telegram' %}bg-sky-500
+                {% elif user.platform == 'whatsapp' %}bg-emerald-500
+                {% else %}bg-violet-500{% endif %}">
+                {{ user.name|first|default:"?"|upper }}
+              </div>
+              <div>
+                <p class="font-medium text-slate-900">{{ user.name|default:"Аноним" }}</p>
+                <p class="text-xs text-slate-400 font-mono">{{ user.user_id|truncatechars:18 }}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <span class="badge text-xs capitalize
+              {% if user.platform == 'telegram' %}bg-sky-50 text-sky-700
+              {% elif user.platform == 'whatsapp' %}bg-emerald-50 text-emerald-700
+              {% else %}bg-violet-50 text-violet-700{% endif %}">
+              {{ user.platform }}
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <p class="text-slate-600 text-xs">{{ user.last_active_at|timesince }} назад</p>
+            <p class="text-slate-400 text-xs">{{ user.total_messages }} сообщений</p>
+          </td>
+          <td class="px-6 py-4 hidden md:table-cell">
+            <span class="text-slate-700">{{ user.total_searches }}</span>
+          </td>
+          <td class="px-6 py-4 hidden md:table-cell">
+            <span class="text-slate-500 uppercase text-xs font-medium">{{ user.language }}</span>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <a href="{% url 'crm:user_detail' user.pk %}"
+               class="text-primary-600 hover:text-primary-700 font-medium text-xs">
+              Детали →
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+            <i data-lucide="users" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+            Пользователей нет
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if users.has_other_pages %}
+<div class="flex justify-center gap-2 mt-5">
+  {% if users.has_previous %}
+  <a href="?page={{ users.previous_page_number }}"
+     class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">← Назад</a>
+  {% endif %}
+  <span class="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm">
+    {{ users.number }} / {{ users.paginator.num_pages }}
+  </span>
+  {% if users.has_next %}
+  <a href="?page={{ users.next_page_number }}"
+     class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50">Вперед →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>lucide.createIcons();</script>
+{% endblock %}

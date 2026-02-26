@@ -1,0 +1,339 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Дашборд — HomeMe CRM{% endblock %}
+
+{% block content %}
+<!-- ── Page Header ── -->
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Дашборд</h1>
+    <p class="text-slate-500 text-sm mt-0.5">Добро пожаловать, <span class="font-medium text-slate-700">{{ request.user.get_full_name|default:request.user.username }}</span> 👋</p>
+  </div>
+  <div class="text-right hidden md:block">
+    <p class="text-xs text-slate-400">{% now "d E Y" %}</p>
+    <p class="text-sm font-medium text-slate-600">{% now "H:i" %}</p>
+  </div>
+</div>
+
+<!-- ── Stats Grid ── -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+  <!-- New Leads -->
+  <div class="stat-card">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm text-slate-500 font-medium">Новых лидов</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ stats.new_leads }}</p>
+        <p class="text-xs text-emerald-600 mt-1 font-medium">+{{ stats.leads_today }} сегодня</p>
+      </div>
+      <div class="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center">
+        <i data-lucide="users" class="w-5 h-5 text-blue-600"></i>
+      </div>
+    </div>
+    <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div class="h-full bg-blue-500 rounded-full" style="width: {% if stats.new_leads %}{{ stats.new_leads|default:0 }}{% else %}0{% endif %}%"></div>
+    </div>
+  </div>
+
+  <!-- Active Properties -->
+  <div class="stat-card">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm text-slate-500 font-medium">Активных объектов</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ stats.active_properties }}</p>
+        <p class="text-xs text-slate-400 mt-1">вторичная недвижимость</p>
+      </div>
+      <div class="w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center">
+        <i data-lucide="home" class="w-5 h-5 text-emerald-600"></i>
+      </div>
+    </div>
+    <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div class="h-full bg-emerald-500 rounded-full" style="width: 65%"></div>
+    </div>
+  </div>
+
+  <!-- Total Users -->
+  <div class="stat-card">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm text-slate-500 font-medium">Пользователей</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ stats.total_users }}</p>
+        <p class="text-xs text-blue-600 mt-1 font-medium">+{{ stats.users_today }} сегодня</p>
+      </div>
+      <div class="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center">
+        <i data-lucide="user-circle" class="w-5 h-5 text-violet-600"></i>
+      </div>
+    </div>
+    <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div class="h-full bg-violet-500 rounded-full" style="width: 45%"></div>
+    </div>
+  </div>
+
+  <!-- BI Complexes -->
+  <div class="stat-card">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm text-slate-500 font-medium">ЖК BI Group</p>
+        <p class="text-3xl font-bold text-slate-900 mt-1">{{ stats.bi_complexes }}</p>
+        <p class="text-xs text-slate-400 mt-1">{{ stats.bi_units }} активных квартир</p>
+      </div>
+      <div class="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center">
+        <i data-lucide="building-2" class="w-5 h-5 text-amber-600"></i>
+      </div>
+    </div>
+    <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div class="h-full bg-amber-500 rounded-full" style="width: 80%"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Charts Row ── -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Leads Line Chart -->
+  <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-base font-semibold text-slate-900">Лиды за 7 дней</h3>
+        <p class="text-sm text-slate-400 mt-0.5">Динамика обращений</p>
+      </div>
+      <span class="badge bg-blue-50 text-blue-700">Неделя</span>
+    </div>
+    <canvas id="leadsChart" height="90"></canvas>
+  </div>
+
+  <!-- Platform Pie -->
+  <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="text-base font-semibold text-slate-900">Платформы</h3>
+        <p class="text-sm text-slate-400 mt-0.5">Откуда приходят</p>
+      </div>
+    </div>
+    <canvas id="platformChart" height="160"></canvas>
+    <div class="mt-4 space-y-2">
+      {% for p in platform_stats %}
+      <div class="flex items-center justify-between text-sm">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full
+            {% if p.platform == 'telegram' %}bg-sky-500
+            {% elif p.platform == 'whatsapp' %}bg-emerald-500
+            {% else %}bg-violet-500{% endif %}"></span>
+          <span class="text-slate-600 capitalize">{{ p.platform }}</span>
+        </div>
+        <span class="font-semibold text-slate-800">{{ p.count }}</span>
+      </div>
+      {% empty %}
+      <p class="text-slate-400 text-sm text-center">Нет данных</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Recent Leads + Quick Actions ── -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+  <!-- Recent Leads Table -->
+  <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="text-base font-semibold text-slate-900">Последние лиды</h3>
+      <a href="{% url 'crm:lead_list' %}" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+        Все лиды →
+      </a>
+    </div>
+    <div class="divide-y divide-slate-50">
+      {% for lead in recent_leads %}
+      <a href="{% url 'crm:lead_detail' lead.pk %}"
+         class="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 transition-colors">
+        <!-- Avatar -->
+        <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold
+          {% if lead.user.platform == 'telegram' %}bg-sky-500
+          {% elif lead.user.platform == 'whatsapp' %}bg-emerald-500
+          {% else %}bg-violet-500{% endif %}">
+          {{ lead.user.name|first|default:"?"|upper }}
+        </div>
+
+        <!-- Info -->
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-slate-900 truncate">{{ lead.user.name|default:"Аноним" }}</p>
+          <p class="text-xs text-slate-400 truncate">{{ lead.request_text|truncatechars:50 }}</p>
+        </div>
+
+        <!-- Status + Time -->
+        <div class="flex flex-col items-end gap-1">
+          <span class="badge text-xs
+            {% if lead.status == 'new' %}bg-blue-50 text-blue-700
+            {% elif lead.status == 'in_progress' %}bg-amber-50 text-amber-700
+            {% elif lead.status == 'contacted' %}bg-emerald-50 text-emerald-700
+            {% elif lead.status == 'closed' %}bg-slate-100 text-slate-600
+            {% else %}bg-red-50 text-red-600{% endif %}">
+            {{ lead.get_status_display }}
+          </span>
+          <span class="text-xs text-slate-400">{{ lead.created_at|timesince }} назад</span>
+        </div>
+      </a>
+      {% empty %}
+      <div class="px-6 py-12 text-center">
+        <i data-lucide="inbox" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+        <p class="text-slate-400 text-sm">Лидов пока нет</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div class="space-y-4">
+
+    <!-- Lead Status Donut -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <h3 class="text-sm font-semibold text-slate-900 mb-3">Статусы лидов</h3>
+      <canvas id="statusChart" height="130"></canvas>
+    </div>
+
+    <!-- Top Cities -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+      <h3 class="text-sm font-semibold text-slate-900 mb-3">Топ городов</h3>
+      <div class="space-y-2">
+        {% for city in top_cities %}
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-slate-600">{{ city.detected_city }}</span>
+          <div class="flex items-center gap-2">
+            <div class="h-1.5 rounded-full bg-primary-200 overflow-hidden" style="width: 60px">
+              <div class="h-full bg-primary-500 rounded-full" style="width: {{ city.count|default:0 }}%"></div>
+            </div>
+            <span class="text-xs font-medium text-slate-700 w-6 text-right">{{ city.count }}</span>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-xs text-slate-400 text-center py-2">Нет данных</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-gradient-to-br from-primary-600 to-blue-700 rounded-2xl p-5 text-white">
+      <h3 class="text-sm font-semibold mb-3">Быстрые действия</h3>
+      <div class="space-y-2">
+        <a href="{% url 'crm:lead_list' %}?status=new"
+           class="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-1">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          Новые лиды
+        </a>
+        <a href="{% url 'properties:complex_list' %}"
+           class="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-1">
+          <i data-lucide="building-2" class="w-4 h-4"></i>
+          ЖК каталог
+        </a>
+        <a href="{% url 'properties:secondary_list' %}"
+           class="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-1">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          Поиск объектов
+        </a>
+        <a href="/admin/"
+           class="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors py-1">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          Администрирование
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const leadsData = {{ leads_chart|safe }};
+  const platformData = {{ platform_stats_json|safe }};
+  const statusData = {{ lead_status_json|safe }};
+
+  // ── Leads Line Chart ──
+  new Chart(document.getElementById('leadsChart'), {
+    type: 'line',
+    data: {
+      labels: leadsData.map(d => d.date),
+      datasets: [{
+        label: 'Всего лидов',
+        data: leadsData.map(d => d.count),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 4,
+        tension: 0.4,
+        fill: true,
+      }, {
+        label: 'Новых',
+        data: leadsData.map(d => d.new),
+        borderColor: '#10b981',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointBackgroundColor: '#10b981',
+        pointRadius: 3,
+        tension: 0.4,
+        borderDash: [4, 3],
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // ── Platform Doughnut ──
+  const PLATFORM_COLORS = { telegram: '#0ea5e9', whatsapp: '#10b981', web: '#8b5cf6', default: '#94a3b8' };
+  new Chart(document.getElementById('platformChart'), {
+    type: 'doughnut',
+    data: {
+      labels: platformData.map(p => p.platform),
+      datasets: [{
+        data: platformData.map(p => p.count),
+        backgroundColor: platformData.map(p => PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.default),
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      cutout: '68%',
+    }
+  });
+
+  // ── Status Doughnut ──
+  const statusLabels = Object.keys(statusData);
+  const statusCounts = Object.values(statusData);
+  const STATUS_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#64748b', '#ef4444'];
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: statusLabels,
+      datasets: [{
+        data: statusCounts,
+        backgroundColor: STATUS_COLORS.slice(0, statusLabels.length),
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { usePointStyle: true, padding: 8, font: { size: 10 } }
+        }
+      },
+      cutout: '62%',
+    }
+  });
+
+  lucide.createIcons();
+</script>
+{% endblock %}

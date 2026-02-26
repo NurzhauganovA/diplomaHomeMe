@@ -1,0 +1,330 @@
+{% extends 'site/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ property.title }} — HomeMe{% endblock %}
+
+{% block content %}
+<div
+  x-data="{
+    lb: false,
+    lbIdx: 0,
+    thumb: 0,
+    photos: {{ property.photos|default:'[]'|safe }},
+    total() { return this.photos.length },
+    openLb(idx) { this.lbIdx = idx; this.lb = true; document.body.style.overflow='hidden' },
+    closeLb() { this.lb = false; document.body.style.overflow='' },
+    lbPrev() { this.lbIdx = (this.lbIdx - 1 + this.total()) % this.total() },
+    lbNext() { this.lbIdx = (this.lbIdx + 1) % this.total() }
+  }"
+  @keydown.escape.window="closeLb()"
+  @keydown.arrow-left.window="lb && lbPrev()"
+  @keydown.arrow-right.window="lb && lbNext()"
+>
+
+{# ══════════ LIGHTBOX ══════════ #}
+<div
+  x-show="lb"
+  x-cloak
+  x-transition:enter="transition duration-200"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition duration-150"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+  class="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
+  @click.self="closeLb()"
+>
+  {# Шапка: счётчик + закрыть #}
+  <div class="flex items-center justify-between px-5 py-3 flex-shrink-0">
+    <span class="text-white/60 text-sm font-medium"
+          x-text="`${lbIdx + 1} / ${total()}`"></span>
+    <button @click="closeLb()"
+            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+  </div>
+
+  {# Главное фото #}
+  <div class="flex-1 flex items-center justify-center px-14 min-h-0 relative">
+    <button @click="lbPrev()"
+            class="absolute left-3 md:left-5 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+      <i data-lucide="chevron-left" class="w-6 h-6"></i>
+    </button>
+
+    <template x-for="(src, idx) in photos" :key="idx">
+      <img :src="src"
+           x-show="lbIdx === idx"
+           x-transition:enter="transition duration-200"
+           x-transition:enter-start="opacity-0 scale-95"
+           x-transition:enter-end="opacity-100 scale-100"
+           class="max-h-full max-w-full object-contain rounded-lg select-none"
+           draggable="false">
+    </template>
+
+    <button @click="lbNext()"
+            class="absolute right-3 md:right-5 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors">
+      <i data-lucide="chevron-right" class="w-6 h-6"></i>
+    </button>
+  </div>
+
+  {# Миниатюры #}
+  <div class="flex-shrink-0 py-3 px-4">
+    <div class="flex gap-2 overflow-x-auto justify-start md:justify-center pb-1 max-w-full">
+      <template x-for="(src, idx) in photos" :key="idx">
+        <button @click="lbIdx = idx"
+                class="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all focus:outline-none"
+                :class="lbIdx === idx ? 'border-white opacity-100' : 'border-transparent opacity-40 hover:opacity-75'">
+          <img :src="src" class="w-full h-full object-cover">
+        </button>
+      </template>
+    </div>
+  </div>
+</div>
+{# /lightbox #}
+
+{# ══════════ СТРАНИЦА ══════════ #}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  {# Breadcrumb #}
+  <nav class="flex items-center gap-2 text-sm text-slate-400 mb-6">
+    <a href="{% url 'properties:home' %}" class="hover:text-brand-600 transition-colors">Главная</a>
+    <span>/</span>
+    <a href="{% url 'properties:secondary_list' %}" class="hover:text-brand-600 transition-colors">Вторичка</a>
+    <span>/</span>
+    <span class="text-slate-700 truncate">{{ property.title|truncatechars:40 }}</span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    {# ── Левая колонка ── #}
+    <div class="lg:col-span-2 space-y-5">
+
+      {# ── Галерея ── #}
+      {% if property.photos %}
+
+      <div class="rounded-2xl overflow-hidden bg-slate-900 select-none">
+
+        {# Главное фото #}
+        <div class="relative h-[380px] md:h-[460px]">
+
+          {% for photo in property.photos %}
+          <img src="{{ photo }}"
+               alt="{{ property.title }}"
+               class="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 cursor-zoom-in"
+               :class="thumb === {{ forloop.counter0 }} ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+               @click="openLb({{ forloop.counter0 }})"
+               onerror="this.style.display='none'">
+          {% endfor %}
+
+          {# Подсказка при наведении #}
+          <div class="absolute inset-0 pointer-events-none flex items-end justify-end p-4">
+            <div class="bg-black/50 text-white/80 text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm flex items-center gap-1.5">
+              <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+              Нажмите для просмотра
+            </div>
+          </div>
+
+          {% if property.photos|length > 1 %}
+          {# Стрелки #}
+          <button @click.stop="thumb = (thumb - 1 + {{ property.photos|length }}) % {{ property.photos|length }}"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors z-10">
+            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          </button>
+          <button @click.stop="thumb = (thumb + 1) % {{ property.photos|length }}"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors z-10">
+            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+          </button>
+
+          {# Счётчик #}
+          <div class="absolute bottom-12 right-3 px-2.5 py-1 bg-black/60 text-white text-xs rounded-lg backdrop-blur-sm pointer-events-none">
+            <span x-text="thumb + 1">1</span>&nbsp;/&nbsp;{{ property.photos|length }}
+          </div>
+          {% endif %}
+        </div>
+
+        {# Миниатюры #}
+        {% if property.photos|length > 1 %}
+        <div class="flex gap-2 p-3 overflow-x-auto bg-slate-800/90">
+          {% for photo in property.photos %}
+          <button @click.stop="thumb = {{ forloop.counter0 }}"
+                  class="flex-shrink-0 w-[72px] h-[54px] rounded-lg overflow-hidden border-2 transition-all focus:outline-none"
+                  :class="thumb === {{ forloop.counter0 }} ? 'border-blue-400 opacity-100' : 'border-transparent opacity-45 hover:opacity-80'">
+            <img src="{{ photo }}" alt="" class="w-full h-full object-cover"
+                 onerror="this.parentElement.classList.add('hidden')">
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div>
+
+      {% elif property.image %}
+      <div class="rounded-2xl overflow-hidden h-[380px] cursor-zoom-in" @click="openLb(0)">
+        <img src="{{ property.image.url }}" alt="{{ property.title }}" class="w-full h-full object-cover">
+      </div>
+
+      {% else %}
+      <div class="rounded-2xl overflow-hidden h-80 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+        <i data-lucide="home" class="w-20 h-20 text-slate-300"></i>
+      </div>
+      {% endif %}
+
+      {# ── Заголовок ── #}
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">{{ property.title }}</h1>
+          <p class="text-slate-500 flex items-center gap-1.5 mt-1.5">
+            <i data-lucide="map-pin" class="w-4 h-4 text-brand-500 flex-shrink-0"></i>
+            {{ property.address }}{% if property.city %}, {{ property.city }}{% endif %}
+          </p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          {% if property.is_verified %}
+          <span class="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-xl border border-emerald-200">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            Проверено
+          </span>
+          {% endif %}
+          {% if property.has_renovation %}
+          <span class="px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-semibold rounded-xl border border-brand-200">
+            С ремонтом
+          </span>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── Ключевые параметры ── #}
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <i data-lucide="door-open" class="w-6 h-6 text-brand-500 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 mb-0.5">Комнаты</p>
+          <p class="font-bold text-slate-900">{{ property.rooms }}</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <i data-lucide="maximize-2" class="w-6 h-6 text-brand-500 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 mb-0.5">Площадь</p>
+          <p class="font-bold text-slate-900">{{ property.area }} м²</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <i data-lucide="layers" class="w-6 h-6 text-brand-500 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 mb-0.5">Этаж</p>
+          <p class="font-bold text-slate-900">{{ property.floor }}/{{ property.total_floors }}</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <i data-lucide="calendar" class="w-6 h-6 text-brand-500 mx-auto mb-2"></i>
+          <p class="text-xs text-slate-400 mb-0.5">Год постройки</p>
+          <p class="font-bold text-slate-900">{{ property.construction_year|default:"—" }}</p>
+        </div>
+      </div>
+
+      {# ── Описание ── #}
+      <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <h3 class="font-semibold text-slate-900 mb-3">Описание</h3>
+        <p class="text-slate-600 leading-relaxed text-sm whitespace-pre-line">{{ property.description }}</p>
+      </div>
+
+      {# ── Характеристики ── #}
+      <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <h3 class="font-semibold text-slate-900 mb-4">Характеристики</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          {% if property.condition %}
+          <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <i data-lucide="check-circle" class="w-4 h-4 text-brand-500 flex-shrink-0"></i>
+            <span class="text-slate-500">Состояние:</span>
+            <span class="font-medium text-slate-700">{{ property.condition }}</span>
+          </div>
+          {% endif %}
+          {% if property.repair %}
+          <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <i data-lucide="paint-bucket" class="w-4 h-4 text-brand-500 flex-shrink-0"></i>
+            <span class="text-slate-500">Ремонт:</span>
+            <span class="font-medium text-slate-700">{{ property.repair }}</span>
+          </div>
+          {% endif %}
+          <div class="flex items-center gap-3 p-3 {% if property.has_parking %}bg-emerald-50{% else %}bg-slate-50{% endif %} rounded-xl">
+            <i data-lucide="car" class="w-4 h-4 {% if property.has_parking %}text-emerald-500{% else %}text-slate-300{% endif %} flex-shrink-0"></i>
+            <span class="text-slate-500">Парковка:</span>
+            <span class="font-medium {% if property.has_parking %}text-emerald-700{% else %}text-slate-400{% endif %}">
+              {% if property.has_parking %}Есть{% else %}Нет{% endif %}
+            </span>
+          </div>
+          <div class="flex items-center gap-3 p-3 {% if property.has_balcony %}bg-emerald-50{% else %}bg-slate-50{% endif %} rounded-xl">
+            <i data-lucide="wind" class="w-4 h-4 {% if property.has_balcony %}text-emerald-500{% else %}text-slate-300{% endif %} flex-shrink-0"></i>
+            <span class="text-slate-500">Балкон:</span>
+            <span class="font-medium {% if property.has_balcony %}text-emerald-700{% else %}text-slate-400{% endif %}">
+              {% if property.has_balcony %}Есть{% else %}Нет{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>{# /left col #}
+
+    {# ── Сайдбар ── #}
+    <div class="space-y-4">
+
+      {# Цена #}
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm sticky top-20">
+        <div class="mb-4">
+          <p class="text-3xl font-extrabold text-slate-900">{{ property.price|floatformat:0 }} ₸</p>
+          <p class="text-sm text-slate-400 mt-1">{{ property.price_per_sqm|floatformat:0 }} ₸ за м²</p>
+        </div>
+
+        {% if property.deal_type %}
+        <span class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-xl mb-4
+          {% if property.deal_type == 'sale' %}bg-brand-50 text-brand-700{% else %}bg-violet-50 text-violet-700{% endif %}">
+          {{ property.get_deal_type_display }}
+        </span>
+        {% endif %}
+
+        <a href="https://t.me/homeme_bot?start=property_{{ property.pk }}" target="_blank"
+           class="flex items-center justify-center gap-2 w-full py-3.5 bg-brand-600 text-white font-semibold rounded-2xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-600/20 text-sm mb-3">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          Связаться через Telegram
+        </a>
+
+        <p class="text-xs text-slate-400 text-center">
+          {{ property.views_count }} просмотров · {{ property.created_at|timesince }} назад
+        </p>
+      </div>
+
+      {# Похожие #}
+      {% if similar_properties %}
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+          <h3 class="text-sm font-semibold text-slate-900">Похожие объекты</h3>
+        </div>
+        <div class="divide-y divide-slate-50">
+          {% for sp in similar_properties %}
+          <a href="{% url 'properties:secondary_detail' sp.pk %}"
+             class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+            <div class="w-14 h-14 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden">
+              {% if sp.image %}
+              <img src="{{ sp.image.url }}" alt="" class="w-full h-full object-cover">
+              {% elif sp.photos %}
+              <img src="{{ sp.photos.0 }}" alt="" class="w-full h-full object-cover"
+                   onerror="this.style.display='none'">
+              {% else %}
+              <div class="w-full h-full flex items-center justify-center">
+                <i data-lucide="home" class="w-5 h-5 text-slate-400"></i>
+              </div>
+              {% endif %}
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-semibold text-slate-900 line-clamp-1">{{ sp.title }}</p>
+              <p class="text-sm text-brand-600 font-bold mt-0.5">{{ sp.price|floatformat:0 }} ₸</p>
+              <p class="text-xs text-slate-400">{{ sp.area }} м² · {{ sp.floor }}/{{ sp.total_floors }} эт.</p>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>{# /sidebar #}
+
+  </div>{# /grid #}
+</div>{# /container #}
+
+</div>{# /x-data #}
+{% endblock %}

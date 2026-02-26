@@ -1,0 +1,246 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Лид #{{ lead.pk }} — HomeMe CRM{% endblock %}
+
+{% block breadcrumb %}
+<span class="text-slate-400">/</span>
+<a href="{% url 'crm:lead_list' %}" class="text-slate-500 hover:text-primary-600">Лиды</a>
+<span class="text-slate-400">/</span>
+<span class="text-slate-700 font-medium">#{{ lead.pk }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <a href="{% url 'crm:lead_list' %}"
+         class="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-primary-600 hover:border-primary-300 transition-all">
+        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+      </a>
+      <div>
+        <h1 class="text-xl font-bold text-slate-900">Лид #{{ lead.pk }}</h1>
+        <p class="text-sm text-slate-400">{{ lead.created_at|date:"d.m.Y H:i" }}</p>
+      </div>
+    </div>
+
+    <!-- Status Badge -->
+    <span class="px-4 py-2 rounded-xl text-sm font-semibold
+      {% if lead.status == 'new' %}bg-blue-50 text-blue-700 border border-blue-200
+      {% elif lead.status == 'in_progress' %}bg-amber-50 text-amber-700 border border-amber-200
+      {% elif lead.status == 'contacted' %}bg-emerald-50 text-emerald-700 border border-emerald-200
+      {% elif lead.status == 'closed' %}bg-slate-100 text-slate-600 border border-slate-200
+      {% else %}bg-red-50 text-red-600 border border-red-200{% endif %}">
+      {{ lead.get_status_display }}
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+    <!-- Main Info -->
+    <div class="lg:col-span-2 space-y-4">
+
+      <!-- Request -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Запрос клиента</h3>
+        <p class="text-slate-800 leading-relaxed">{{ lead.request_text }}</p>
+      </div>
+
+      <!-- Search Params -->
+      {% if lead.search_params %}
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Параметры поиска</h3>
+        <div class="grid grid-cols-2 gap-3">
+          {% for key, value in lead.search_params.items %}
+          {% if value %}
+          <div class="bg-slate-50 rounded-xl px-4 py-2.5">
+            <p class="text-xs text-slate-400 capitalize">{{ key }}</p>
+            <p class="text-sm font-medium text-slate-700 mt-0.5">{{ value }}</p>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Manager Notes -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Заметки менеджера</h3>
+        {% if lead.manager_notes %}
+        <p class="text-slate-700">{{ lead.manager_notes }}</p>
+        {% else %}
+        <p class="text-slate-400 text-sm italic">Заметок нет</p>
+        {% endif %}
+      </div>
+
+      <!-- Status Change -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm" x-data="{ open: false }">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide">Изменить статус</h3>
+          <button @click="open = !open"
+                  class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+            <span x-text="open ? 'Скрыть' : 'Открыть'">Открыть</span>
+          </button>
+        </div>
+
+        <div x-show="open" x-transition class="mt-4 space-y-3">
+          <div>
+            <label class="block text-sm text-slate-600 mb-1">Назначить менеджера</label>
+            <input type="text" id="managerInput" placeholder="Имя менеджера"
+                   class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                   value="{{ lead.assigned_to|default:'' }}">
+          </div>
+          <div>
+            <label class="block text-sm text-slate-600 mb-1">Заметка</label>
+            <textarea id="notesInput" rows="2" placeholder="Добавить заметку..."
+                      class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none">{{ lead.manager_notes }}</textarea>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {% for status, label in lead.STATUS_CHOICES %}
+            <button onclick="updateStatus('{{ status }}')"
+                    class="px-4 py-2 rounded-xl text-sm font-medium transition-all
+                      {% if lead.status == status %}ring-2 ring-primary-500 ring-offset-1{% endif %}
+                      {% if status == 'new' %}bg-blue-50 text-blue-700 hover:bg-blue-100
+                      {% elif status == 'in_progress' %}bg-amber-50 text-amber-700 hover:bg-amber-100
+                      {% elif status == 'contacted' %}bg-emerald-50 text-emerald-700 hover:bg-emerald-100
+                      {% elif status == 'closed' %}bg-slate-100 text-slate-600 hover:bg-slate-200
+                      {% else %}bg-red-50 text-red-600 hover:bg-red-100{% endif %}">
+              {{ label }}
+            </button>
+            {% endfor %}
+          </div>
+          <div id="statusMsg" class="hidden text-sm text-emerald-600 font-medium">✓ Статус обновлен</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+
+      <!-- User Info -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Клиент</h3>
+        <div class="text-center mb-4">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-2
+            {% if lead.user.platform == 'telegram' %}bg-sky-500
+            {% elif lead.user.platform == 'whatsapp' %}bg-emerald-500
+            {% else %}bg-violet-500{% endif %}">
+            {{ lead.user.name|first|default:"?"|upper }}
+          </div>
+          <p class="font-semibold text-slate-900">{{ lead.user.name|default:"Аноним" }}</p>
+          <p class="text-xs text-slate-400 capitalize mt-0.5">{{ lead.user.platform }}</p>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-400">ID</span>
+            <span class="text-slate-700 font-mono text-xs">{{ lead.user.user_id|truncatechars:20 }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Поисков</span>
+            <span class="text-slate-700">{{ lead.user.total_searches }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Сообщений</span>
+            <span class="text-slate-700">{{ lead.user.total_messages }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Активен</span>
+            <span class="text-slate-700 text-xs">{{ lead.user.last_active_at|timesince }} назад</span>
+          </div>
+        </div>
+        <a href="{% url 'crm:user_detail' lead.user.pk %}"
+           class="mt-4 w-full block text-center py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl text-sm font-medium transition-colors">
+          Профиль →
+        </a>
+      </div>
+
+      <!-- Lead Meta -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Детали лида</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Приоритет</span>
+            <span class="font-medium
+              {% if lead.priority >= 4 %}text-red-600
+              {% elif lead.priority >= 2 %}text-amber-600
+              {% else %}text-slate-600{% endif %}">
+              {{ lead.get_priority_display }}
+            </span>
+          </div>
+          {% if lead.assigned_to %}
+          <div class="flex justify-between">
+            <span class="text-slate-400">Менеджер</span>
+            <span class="text-slate-700">{{ lead.assigned_to }}</span>
+          </div>
+          {% endif %}
+          {% if lead.contacted_at %}
+          <div class="flex justify-between">
+            <span class="text-slate-400">Связались</span>
+            <span class="text-slate-700 text-xs">{{ lead.contacted_at|date:"d.m.Y H:i" }}</span>
+          </div>
+          {% endif %}
+          {% if lead.closed_at %}
+          <div class="flex justify-between">
+            <span class="text-slate-400">Закрыт</span>
+            <span class="text-slate-700 text-xs">{{ lead.closed_at|date:"d.m.Y H:i" }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Other leads from same user -->
+      {% if user_leads %}
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Другие лиды</h3>
+        <div class="space-y-2">
+          {% for ul in user_leads %}
+          <a href="{% url 'crm:lead_detail' ul.pk %}"
+             class="block p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-slate-600 truncate flex-1">{{ ul.request_text|truncatechars:30 }}</span>
+              <span class="badge text-xs ml-2
+                {% if ul.status == 'new' %}bg-blue-50 text-blue-700
+                {% elif ul.status == 'closed' %}bg-slate-100 text-slate-500
+                {% else %}bg-amber-50 text-amber-700{% endif %}">
+                {{ ul.get_status_display }}
+              </span>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function updateStatus(status) {
+    const data = {
+      status: status,
+      assigned_to: document.getElementById('managerInput').value,
+      notes: document.getElementById('notesInput').value,
+    };
+    fetch('{% url "crm:lead_status" lead.pk %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const msg = document.getElementById('statusMsg');
+        msg.textContent = '✓ Статус изменен на "' + data.status_display + '"';
+        msg.classList.remove('hidden');
+        setTimeout(() => location.reload(), 1200);
+      }
+    });
+  }
+  lucide.createIcons();
+</script>
+{% endblock %}

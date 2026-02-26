@@ -1,0 +1,171 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Лиды — HomeMe CRM{% endblock %}
+
+{% block breadcrumb %}
+<span class="text-slate-400">/</span>
+<span class="text-slate-700 font-medium">Лиды</span>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">Лиды</h1>
+    <p class="text-slate-500 text-sm mt-0.5">Управление клиентскими запросами</p>
+  </div>
+</div>
+
+<!-- Status Tabs -->
+<div class="flex gap-2 overflow-x-auto pb-2 mb-5 scrollbar-none">
+  <a href="{% url 'crm:lead_list' %}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all
+       {% if not current_status %}bg-primary-600 text-white shadow-md{% else %}bg-white text-slate-600 border border-slate-200 hover:border-primary-300{% endif %}">
+    Все
+    <span class="text-xs px-1.5 py-0.5 rounded-full
+      {% if not current_status %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+      {{ leads.paginator.count }}
+    </span>
+  </a>
+  {% for status, label in status_choices %}
+  <a href="?status={{ status }}{% if search_query %}&q={{ search_query }}{% endif %}"
+     class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all
+       {% if current_status == status %}bg-primary-600 text-white shadow-md{% else %}bg-white text-slate-600 border border-slate-200 hover:border-primary-300{% endif %}">
+    {{ label }}
+    <span class="text-xs px-1.5 py-0.5 rounded-full
+      {% if current_status == status %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+      {{ status_counts|default_if_none:"0" }}
+    </span>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Search + Filters -->
+<form method="get" class="flex gap-3 mb-5">
+  {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+  <div class="relative flex-1">
+    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+    <input type="text" name="q" value="{{ search_query }}"
+           placeholder="Поиск по имени, телефону, тексту..."
+           class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+  </div>
+  <select name="priority"
+          class="px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+    <option value="">Приоритет</option>
+    {% for val, label in priority_choices %}
+    <option value="{{ val }}" {% if current_priority == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit"
+          class="px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors">
+    Найти
+  </button>
+  {% if search_query or current_status or current_priority %}
+  <a href="{% url 'crm:lead_list' %}"
+     class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors">
+    Сброс
+  </a>
+  {% endif %}
+</form>
+
+<!-- Leads Cards Grid -->
+{% if leads %}
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  {% for lead in leads %}
+  <a href="{% url 'crm:lead_detail' lead.pk %}"
+     class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-primary-200 transition-all group">
+
+    <!-- Top row: avatar + status -->
+    <div class="flex items-start justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold
+          {% if lead.user.platform == 'telegram' %}bg-sky-500
+          {% elif lead.user.platform == 'whatsapp' %}bg-emerald-500
+          {% else %}bg-violet-500{% endif %}">
+          {{ lead.user.name|first|default:"?"|upper }}
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-900">{{ lead.user.name|default:"Аноним" }}</p>
+          <p class="text-xs text-slate-400 capitalize">{{ lead.user.platform }}</p>
+        </div>
+      </div>
+      <span class="badge text-xs font-medium
+        {% if lead.status == 'new' %}bg-blue-50 text-blue-700
+        {% elif lead.status == 'in_progress' %}bg-amber-50 text-amber-700
+        {% elif lead.status == 'contacted' %}bg-emerald-50 text-emerald-700
+        {% elif lead.status == 'closed' %}bg-slate-100 text-slate-600
+        {% else %}bg-red-50 text-red-600{% endif %}">
+        {{ lead.get_status_display }}
+      </span>
+    </div>
+
+    <!-- Request text -->
+    <p class="text-sm text-slate-600 line-clamp-2 mb-3">{{ lead.request_text }}</p>
+
+    <!-- Footer -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-50">
+      <div class="flex items-center gap-1.5">
+        <!-- Priority indicator -->
+        {% if lead.priority >= 4 %}
+        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+        <span class="text-xs text-red-600 font-medium">Срочно</span>
+        {% elif lead.priority >= 2 %}
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+        <span class="text-xs text-amber-600 font-medium">Средний</span>
+        {% else %}
+        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+        <span class="text-xs text-slate-400">Обычный</span>
+        {% endif %}
+      </div>
+      <div class="flex items-center gap-1 text-xs text-slate-400">
+        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        {{ lead.created_at|timesince }} назад
+      </div>
+    </div>
+
+    {% if lead.assigned_to %}
+    <div class="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+      <i data-lucide="user" class="w-3.5 h-3.5"></i>
+      {{ lead.assigned_to }}
+    </div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if leads.has_other_pages %}
+<div class="flex justify-center gap-2 mt-6">
+  {% if leads.has_previous %}
+  <a href="?page={{ leads.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}"
+     class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+    ← Назад
+  </a>
+  {% endif %}
+
+  <span class="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-medium">
+    {{ leads.number }} / {{ leads.paginator.num_pages }}
+  </span>
+
+  {% if leads.has_next %}
+  <a href="?page={{ leads.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}"
+     class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+    Вперед →
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="bg-white rounded-2xl border border-slate-100 py-16 text-center">
+  <i data-lucide="inbox" class="w-12 h-12 text-slate-300 mx-auto mb-3"></i>
+  <h3 class="text-slate-600 font-medium mb-1">Лидов не найдено</h3>
+  <p class="text-slate-400 text-sm">Попробуйте изменить фильтры</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>lucide.createIcons();</script>
+{% endblock %}

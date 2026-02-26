@@ -1,0 +1,139 @@
+{% extends 'site/base.html' %}
+
+{% block title %}Новостройки BI Group — HomeMe{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-slate-900">Жилые Комплексы</h1>
+    <p class="text-slate-500 mt-1.5">Новостройки от BI Group — ведущего застройщика Казахстана</p>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="flex flex-col sm:flex-row gap-3 mb-8">
+    <div class="relative flex-1">
+      <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+      <input type="text" name="q" value="{{ search_query }}"
+             placeholder="Название ЖК или адрес..."
+             class="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm">
+    </div>
+    <select name="class"
+            class="px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm">
+      <option value="">Все классы</option>
+      {% for cls in class_choices %}
+      {% if cls %}
+      <option value="{{ cls }}" {% if current_class == cls %}selected{% endif %}>{{ cls }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+    <button type="submit"
+            class="px-6 py-3 bg-brand-600 text-white rounded-2xl text-sm font-semibold hover:bg-brand-700 transition-colors shadow-lg shadow-brand-600/20">
+      Найти
+    </button>
+  </form>
+
+  <!-- Grid -->
+  {% if complexes %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+    {% for complex in complexes %}
+    <a href="{% url 'properties:complex_detail' complex.pk %}"
+       class="group bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+
+      <!-- Image -->
+      <div class="relative h-52 bg-gradient-to-br from-slate-200 to-slate-300 overflow-hidden">
+        {% if complex.image_url %}
+        <img src="{{ complex.image_url }}" alt="{{ complex.name }}"
+             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+             onerror="this.style.display='none'">
+        {% endif %}
+        <div class="absolute inset-0 flex items-center justify-center {% if complex.image_url %}hidden{% endif %}">
+          <i data-lucide="building-2" class="w-16 h-16 text-slate-300"></i>
+        </div>
+
+        <!-- Overlay gradient -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+        {% if complex.class_name %}
+        <div class="absolute top-3 left-3">
+          <span class="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-slate-700 text-xs font-semibold rounded-lg">
+            {{ complex.class_name }}
+          </span>
+        </div>
+        {% endif %}
+
+        {% if complex.units_count %}
+        <div class="absolute top-3 right-3">
+          <span class="px-2.5 py-1 bg-brand-600/90 backdrop-blur-sm text-white text-xs font-medium rounded-lg">
+            {{ complex.units_count }} кв.
+          </span>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="p-5">
+        <h3 class="font-bold text-slate-900 text-base group-hover:text-brand-600 transition-colors leading-tight mb-1.5">
+          {{ complex.name }}
+        </h3>
+        <p class="text-xs text-slate-400 flex items-start gap-1.5 mb-4 leading-relaxed">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"></i>
+          {{ complex.address|truncatechars:60 }}
+        </p>
+
+        <div class="flex items-center justify-between">
+          {% if complex.min_price %}
+          <div>
+            <p class="text-xs text-slate-400 mb-0.5">от</p>
+            <p class="text-base font-bold text-brand-600">{{ complex.min_price|floatformat:0 }} ₸</p>
+          </div>
+          {% else %}
+          <span class="text-sm text-slate-400">Цена по запросу</span>
+          {% endif %}
+
+          {% if complex.deadline %}
+          <span class="text-xs bg-slate-50 text-slate-500 px-2.5 py-1.5 rounded-xl font-medium">
+            {{ complex.deadline }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="flex justify-center gap-2 mt-8">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+       class="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 shadow-sm">
+      ← Назад
+    </a>
+    {% endif %}
+    <span class="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium">
+      {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}"
+       class="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 shadow-sm">
+      Вперед →
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-16">
+    <i data-lucide="building-2" class="w-16 h-16 text-slate-300 mx-auto mb-4"></i>
+    <h3 class="text-xl font-semibold text-slate-600 mb-2">Ничего не найдено</h3>
+    <p class="text-slate-400">Попробуйте изменить параметры поиска</p>
+    <a href="{% url 'properties:complex_list' %}" class="mt-4 inline-block text-brand-600 hover:text-brand-700 font-medium">
+      Сбросить фильтры
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

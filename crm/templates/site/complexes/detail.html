@@ -1,0 +1,178 @@
+{% extends 'site/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ complex.name }} — HomeMe{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<div class="relative h-80 lg:h-[420px] bg-gradient-to-br from-slate-700 to-slate-900 overflow-hidden">
+  {% if complex.image_url %}
+  <img src="{{ complex.image_url }}" alt="{{ complex.name }}"
+       class="w-full h-full object-cover opacity-70"
+       onerror="this.style.display='none'">
+  {% endif %}
+  <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+
+  <!-- Content overlay -->
+  <div class="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+    <div class="flex flex-col gap-2">
+      {% if complex.class_name %}
+      <span class="inline-flex w-fit px-3 py-1 bg-brand-600 text-white text-xs font-semibold rounded-lg">
+        {{ complex.class_name }}
+      </span>
+      {% endif %}
+      <h1 class="text-3xl lg:text-4xl font-bold text-white">{{ complex.name }}</h1>
+      <p class="text-slate-300 flex items-center gap-2 text-sm">
+        <i data-lucide="map-pin" class="w-4 h-4 flex-shrink-0"></i>
+        {{ complex.address }}
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Main content -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- Quick stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {% if min_price %}
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <p class="text-xs text-slate-400 mb-1">Цена от</p>
+          <p class="text-sm font-bold text-brand-600">{{ min_price|floatformat:0 }} ₸</p>
+        </div>
+        {% endif %}
+        {% if max_price %}
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <p class="text-xs text-slate-400 mb-1">До</p>
+          <p class="text-sm font-bold text-slate-700">{{ max_price|floatformat:0 }} ₸</p>
+        </div>
+        {% endif %}
+        {% if min_area %}
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <p class="text-xs text-slate-400 mb-1">Площадь</p>
+          <p class="text-sm font-bold text-slate-700">{{ min_area|floatformat:0 }}–{{ max_area|floatformat:0 }} м²</p>
+        </div>
+        {% endif %}
+        <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
+          <p class="text-xs text-slate-400 mb-1">Квартир</p>
+          <p class="text-sm font-bold text-slate-700">{{ units_count }}</p>
+        </div>
+      </div>
+
+      <!-- Description -->
+      {% if complex.description %}
+      <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <h3 class="font-semibold text-slate-900 mb-3">О комплексе</h3>
+        <p class="text-slate-600 leading-relaxed text-sm">{{ complex.description }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Units -->
+      {% if units %}
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-semibold text-slate-900">Доступные квартиры</h3>
+          <span class="text-xs text-slate-500">{{ units_count }} вариантов</span>
+        </div>
+
+        <!-- Room filter -->
+        {% if rooms_available %}
+        <div class="px-6 py-3 border-b border-slate-50 flex gap-2 overflow-x-auto">
+          <button class="px-3 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg whitespace-nowrap">
+            Все
+          </button>
+          {% for rooms in rooms_available %}
+          <button class="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg whitespace-nowrap hover:bg-slate-200 transition-colors">
+            {{ rooms }}-комн.
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="divide-y divide-slate-50">
+          {% for unit in units %}
+          <div class="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
+            <div class="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <span class="text-brand-700 font-bold text-sm">{{ unit.room_count }}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-slate-900 text-sm">{{ unit.room_count }}-комн. · {{ unit.area }} м²</p>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Этаж {{ unit.floor }}{% if unit.max_floor %}/{{ unit.max_floor }}{% endif %}
+                {% if unit.block_name %} · {{ unit.block_name }}{% endif %}
+              </p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              {% if unit.price_discount %}
+              <p class="text-xs text-slate-400 line-through">{{ unit.price|floatformat:0 }} ₸</p>
+              <p class="text-sm font-bold text-emerald-600">{{ unit.price_discount|floatformat:0 }} ₸</p>
+              {% else %}
+              <p class="text-sm font-bold text-brand-600">{{ unit.price|floatformat:0 }} ₸</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-4">
+
+      <!-- CTA Card -->
+      <div class="bg-gradient-to-br from-brand-600 to-indigo-700 rounded-2xl p-6 text-white">
+        <h3 class="font-bold text-lg mb-2">Узнать цену</h3>
+        <p class="text-white/80 text-sm mb-4">Оставьте заявку и менеджер свяжется с вами</p>
+        <a href="https://t.me/homeme_bot" target="_blank"
+           class="flex items-center justify-center gap-2 w-full py-3 bg-white text-brand-700 font-semibold rounded-xl hover:bg-white/90 transition-colors text-sm">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          Telegram-бот
+        </a>
+      </div>
+
+      <!-- Complex Info -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Информация</h3>
+        <div class="space-y-3 text-sm">
+          {% if complex.deadline %}
+          <div class="flex justify-between">
+            <span class="text-slate-400 flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4"></i> Срок сдачи</span>
+            <span class="font-medium text-slate-700">{{ complex.deadline }}</span>
+          </div>
+          {% endif %}
+          {% if complex.class_name %}
+          <div class="flex justify-between">
+            <span class="text-slate-400 flex items-center gap-2"><i data-lucide="star" class="w-4 h-4"></i> Класс</span>
+            <span class="font-medium text-slate-700">{{ complex.class_name }}</span>
+          </div>
+          {% endif %}
+          {% if min_area and max_area %}
+          <div class="flex justify-between">
+            <span class="text-slate-400 flex items-center gap-2"><i data-lucide="maximize-2" class="w-4 h-4"></i> Площадь</span>
+            <span class="font-medium text-slate-700">{{ min_area|floatformat:0 }}–{{ max_area|floatformat:0 }} м²</span>
+          </div>
+          {% endif %}
+          <div class="flex justify-between">
+            <span class="text-slate-400 flex items-center gap-2"><i data-lucide="home" class="w-4 h-4"></i> Квартир</span>
+            <span class="font-medium text-slate-700">{{ units_count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Back -->
+      <a href="{% url 'properties:complex_list' %}"
+         class="flex items-center justify-center gap-2 w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Назад к списку
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
