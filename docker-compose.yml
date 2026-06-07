@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────
+#  HomeMe CRM — docker compose up --build
+#  После запуска: https://sushizza.kz
+#  Admin: /admin/ — admin / admin123
+#  Host Nginx проксирует 443 → localhost:8082
+# ─────────────────────────────────────────────────────
+
+services:
+
+  # ── Django + Gunicorn ─────────────────────────────
+  web:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    volumes:
+      - db_data:/app/data
+      - media_data:/app/crm/media
+      - static_data:/app/crm/staticfiles
+    entrypoint: /app/docker/entrypoint.sh
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - homeme_network
+
+  # ── Nginx (статика + proxy) ────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8082}:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_data:/app/crm/staticfiles:ro
+      - media_data:/app/crm/media:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - homeme_network
+
+networks:
+  homeme_network:
+    driver: bridge
+
+volumes:
+  db_data:
+  media_data:
+  static_data:

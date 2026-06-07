@@ -1,0 +1,22 @@
+# Env
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+
+# Django
+crm/staticfiles/
+crm/media/
+crm/marketplace.log
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Docker
+certbot/
